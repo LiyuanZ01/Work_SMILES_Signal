@@ -1,0 +1,50 @@
+name: NBS static yearbook provincial table discovery
+
+on:
+  push:
+    branches:
+      - agent/wto-v15-native-data-run
+    paths:
+      - ".github/workflows/nbs-yearbook-discovery.yml"
+      - "customs_v19/discover_nbs_yearbook_tables.py"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/nbs-yearbook-discovery.yml"
+      - "customs_v19/discover_nbs_yearbook_tables.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  discover-yearbook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install minimal environment
+        run: python -m pip install requests beautifulsoup4
+      - name: Discover and archive official yearbook tables
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: python customs_v19/discover_nbs_yearbook_tables.py
+      - name: Record checksums
+        if: always()
+        run: |
+          mkdir -p customs_v19/yearbook_discovery
+          cd customs_v19/yearbook_discovery
+          sha256sum * > SHA256SUMS.txt || true
+          ls -lah
+      - name: Upload official yearbook discovery
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nbs-static-yearbook-provincial-tables
+          path: customs_v19/yearbook_discovery/
+          if-no-files-found: warn
+          retention-days: 14
