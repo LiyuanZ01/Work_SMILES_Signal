@@ -39,7 +39,7 @@ jobs:
       - name: Download, audit, and estimate
         env:
           V15_OUTPUT_DIR: external_demand_wto/results
-        run: python external_demand_wto/run_native_wto_v15.py
+        run: python external_demand_wto/run_native_wto_v15_wrapper.py
 
       - name: Record output checksums
         shell: bash
