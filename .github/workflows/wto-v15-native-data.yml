@@ -1,4 +1,4 @@
-name: WTO v15 native-data run
+name: WTO v15 native-data and P1 audit
 
 on:
   push:
@@ -19,9 +19,9 @@ permissions:
   contents: read
 
 jobs:
-  reproduce-v15:
+  reproduce-v15-and-p1:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -42,17 +42,32 @@ jobs:
           V15_OUTPUT_DIR: external_demand_wto/results
         run: python external_demand_wto/run_native_wto_v15_wrapper.py
 
+      - name: Run P1 submission robustness audit
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: |
+          python external_demand_wto/run_v15_p1_submission_audit.py \
+            --input-dir external_demand_wto/results \
+            --output-dir external_demand_wto/p1_results \
+            --bootstrap-reps 3000 \
+            --break-reps 1000
+
       - name: Record output checksums
         shell: bash
         run: |
           cd external_demand_wto/results
           sha256sum * > SHA256SUMS.txt
           ls -lah
+          cd ../p1_results
+          sha256sum * > SHA256SUMS.txt
+          ls -lah
 
       - name: Upload reproducibility artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wto-v15-native-results
-          path: external_demand_wto/results/
+          name: wto-v15-native-and-p1-results
+          path: |
+            external_demand_wto/results/
+            external_demand_wto/p1_results/
           if-no-files-found: error
           retention-days: 14
