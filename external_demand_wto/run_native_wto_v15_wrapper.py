@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import json
+
 import numpy as np
 import pandas as pd
 
@@ -76,13 +78,7 @@ def download_reer_from_bis_dbnomics(dl):
 
 
 def estimate_models_with_full_sample_rolling(model_data):
-    """Keep national rolling coverage in the report rather than truncate the main sample.
-
-    The pre-specified 70% threshold is retained as a sensitivity model. The national
-    rolling baseline uses all quarters with observed constructed variables, matching
-    the manuscript's method statement that national coverage is reported rather than
-    used as a hard sample filter.
-    """
+    """Use the complete national rolling sample and retain 70% as sensitivity."""
     results, summaries = _original_estimate_models(model_data)
 
     if not results.empty:
@@ -121,9 +117,34 @@ def estimate_models_with_full_sample_rolling(model_data):
     return results, summaries
 
 
+def update_status_metadata() -> None:
+    path = pipeline.OUTPUT_DIR / "v15_status.json"
+    status = json.loads(path.read_text(encoding="utf-8"))
+    status["national_rolling_main_coverage_rule"] = (
+        "all quarters with observed constructed variables; actual coverage reported"
+    )
+    status["rolling_threshold70_role"] = "sensitivity specification only"
+    status["rolling_threshold70_eligible_quarters"] = status.get(
+        "rolling_eligible_quarters"
+    )
+    limits = status.get("interpretation_limits", [])
+    replacement = (
+        "The national rolling baseline reports actual coverage without a hard cutoff; "
+        "the 70% cutoff is retained as a sensitivity specification."
+    )
+    if len(limits) >= 3:
+        limits[2] = replacement
+    else:
+        limits.append(replacement)
+    status["interpretation_limits"] = limits
+    pipeline.write_json(path, status)
+
+
 pipeline.download_wto_data = download_wto_data_allowing_unavailable_series
 pipeline.download_reer = download_reer_from_bis_dbnomics
 pipeline.estimate_models = estimate_models_with_full_sample_rolling
 
 if __name__ == "__main__":
-    raise SystemExit(pipeline.main())
+    exit_code = pipeline.main()
+    update_status_metadata()
+    raise SystemExit(exit_code)
