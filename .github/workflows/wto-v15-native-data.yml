@@ -1,4 +1,4 @@
-name: WTO v15 native-data and P1 audit
+name: WTO v15 native-data, P1 and P2 audits
 
 on:
   push:
@@ -19,9 +19,9 @@ permissions:
   contents: read
 
 jobs:
-  reproduce-v15-and-p1:
+  reproduce-v15-p1-p2:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -52,22 +52,30 @@ jobs:
             --bootstrap-reps 3000 \
             --break-reps 1000
 
+      - name: Run P2 domestic-activity audit
+        env:
+          PYTHONUNBUFFERED: "1"
+          V15_OUTPUT_DIR: external_demand_wto/results
+          P2_OUTPUT_DIR: external_demand_wto/p2_results
+          P2_BOOT_REPS: "2500"
+        run: python external_demand_wto/run_p2_domestic_activity.py
+
       - name: Record output checksums
         shell: bash
         run: |
-          cd external_demand_wto/results
-          sha256sum * > SHA256SUMS.txt
-          ls -lah
-          cd ../p1_results
-          sha256sum * > SHA256SUMS.txt
-          ls -lah
+          for dir in results p1_results p2_results; do
+            cd "$GITHUB_WORKSPACE/external_demand_wto/$dir"
+            sha256sum * > SHA256SUMS.txt
+            ls -lah
+          done
 
       - name: Upload reproducibility artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wto-v15-native-and-p1-results
+          name: wto-v15-p1-p2-results
           path: |
             external_demand_wto/results/
             external_demand_wto/p1_results/
+            external_demand_wto/p2_results/
           if-no-files-found: error
           retention-days: 14
