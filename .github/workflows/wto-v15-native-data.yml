@@ -1,4 +1,4 @@
-name: WTO v15 native-data, P1 and current-GDP P2 audits
+name: WTO v15 native-data, P1 and corrected P2 audits
 
 on:
   push:
@@ -60,10 +60,18 @@ jobs:
           P2_CURRENT_BOOT_REPS: "2500"
         run: python external_demand_wto/run_p2_gdp_current.py
 
+      - name: Run P2 stationarity and pandemic correction
+        env:
+          PYTHONUNBUFFERED: "1"
+          P2_CURRENT_INPUT: external_demand_wto/p2_current_results
+          P2_CORRECTED_OUTPUT: external_demand_wto/p2_corrected_results
+          P2_CORRECTED_REPS: "3000"
+        run: python external_demand_wto/run_p2_stationarity_correction.py
+
       - name: Record output checksums
         shell: bash
         run: |
-          for dir in results p1_results p2_current_results; do
+          for dir in results p1_results p2_current_results p2_corrected_results; do
             cd "$GITHUB_WORKSPACE/external_demand_wto/$dir"
             sha256sum * > SHA256SUMS.txt
             ls -lah
@@ -72,10 +80,11 @@ jobs:
       - name: Upload reproducibility artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wto-v15-p1-current-gdp-p2-results
+          name: wto-v15-p1-corrected-p2-results
           path: |
             external_demand_wto/results/
             external_demand_wto/p1_results/
             external_demand_wto/p2_current_results/
+            external_demand_wto/p2_corrected_results/
           if-no-files-found: error
           retention-days: 14
