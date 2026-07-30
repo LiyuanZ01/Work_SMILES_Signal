@@ -1,0 +1,46 @@
+name: Archive official NBS yearbook provincial assets
+
+on:
+  push:
+    branches:
+      - agent/wto-v15-native-data-run
+    paths:
+      - ".github/workflows/nbs-yearbook-assets.yml"
+      - "customs_v19/archive_yearbook_linked_assets.py"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/nbs-yearbook-assets.yml"
+      - "customs_v19/archive_yearbook_linked_assets.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  archive-assets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install requests beautifulsoup4
+      - name: Archive linked yearbook assets
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: python customs_v19/archive_yearbook_linked_assets.py
+      - name: Record checksums
+        run: |
+          cd customs_v19/yearbook_linked_assets
+          sha256sum * > SHA256SUMS.txt
+          ls -lah
+      - name: Upload source archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: nbs-yearbook-provincial-linked-assets
+          path: customs_v19/yearbook_linked_assets/
+          if-no-files-found: error
+          retention-days: 14
