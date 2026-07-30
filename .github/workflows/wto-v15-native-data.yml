@@ -52,6 +52,11 @@ jobs:
             --bootstrap-reps 3000 \
             --break-reps 1000
 
+      - name: Diagnose current OECD SDMX series
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: python external_demand_wto/diagnose_oecd_current.py
+
       - name: Run P2 domestic-activity audit
         env:
           PYTHONUNBUFFERED: "1"
