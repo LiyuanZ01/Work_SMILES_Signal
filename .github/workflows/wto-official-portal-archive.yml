@@ -8,6 +8,7 @@ on:
       - ".github/workflows/wto-official-portal-archive.yml"
       - "external_demand_wto/archive_official_wto_portal.py"
       - "external_demand_wto/convert_and_audit_official_wto_xls.py"
+      - "external_demand_wto/discover_wto_stats_public_api.py"
   pull_request:
     branches:
       - main
@@ -15,6 +16,7 @@ on:
       - ".github/workflows/wto-official-portal-archive.yml"
       - "external_demand_wto/archive_official_wto_portal.py"
       - "external_demand_wto/convert_and_audit_official_wto_xls.py"
+      - "external_demand_wto/discover_wto_stats_public_api.py"
   workflow_dispatch:
 
 permissions:
@@ -23,7 +25,7 @@ permissions:
 jobs:
   archive-wto:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -48,6 +50,11 @@ jobs:
           else
             echo "Official workbook was not downloaded; conversion skipped." | tee external_demand_wto/wto_official_archive/conversion_skipped.txt
           fi
+      - name: Discover current WTO Stats public data API
+        if: always()
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: python external_demand_wto/discover_wto_stats_public_api.py
       - name: Record checksums and inventory
         if: always()
         run: |
