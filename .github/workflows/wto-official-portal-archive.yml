@@ -46,3 +46,5 @@ jobs:
           path: external_demand_wto/wto_official_archive/
           if-no-files-found: error
           retention-days: 30
+
+# Direct WTO-origin archival only; mirror observations are not substituted.
