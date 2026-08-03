@@ -9,6 +9,7 @@ on:
       - "external_demand_wto/archive_official_wto_portal.py"
       - "external_demand_wto/convert_and_audit_official_wto_xls.py"
       - "external_demand_wto/discover_wto_stats_public_api.py"
+      - "external_demand_wto/export_wto_stats_selected_series.py"
   pull_request:
     branches:
       - main
@@ -17,6 +18,7 @@ on:
       - "external_demand_wto/archive_official_wto_portal.py"
       - "external_demand_wto/convert_and_audit_official_wto_xls.py"
       - "external_demand_wto/discover_wto_stats_public_api.py"
+      - "external_demand_wto/export_wto_stats_selected_series.py"
   workflow_dispatch:
 
 permissions:
@@ -25,7 +27,7 @@ permissions:
 jobs:
   archive-wto:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -55,20 +57,29 @@ jobs:
         env:
           PYTHONUNBUFFERED: "1"
         run: python external_demand_wto/discover_wto_stats_public_api.py
+      - name: Export exact China and partner volume selections
+        continue-on-error: true
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: python external_demand_wto/export_wto_stats_selected_series.py
       - name: Record checksums and inventory
         if: always()
         run: |
-          mkdir -p external_demand_wto/wto_official_archive
-          cd external_demand_wto/wto_official_archive
-          sha256sum * > SHA256SUMS.txt || true
-          find . -maxdepth 1 -type f -printf '%f\t%s bytes\n' | sort > FILE_INVENTORY.txt
-          cat FILE_INVENTORY.txt
+          mkdir -p external_demand_wto/wto_official_archive external_demand_wto/wto_exact_export
+          for dir in wto_official_archive wto_exact_export; do
+            cd "$GITHUB_WORKSPACE/external_demand_wto/$dir"
+            sha256sum * > SHA256SUMS.txt || true
+            find . -maxdepth 1 -type f -printf '%f\t%s bytes\n' | sort > FILE_INVENTORY.txt
+            cat FILE_INVENTORY.txt
+          done
       - name: Upload official WTO archive
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: wto-official-portal-archive
-          path: external_demand_wto/wto_official_archive/
+          path: |
+            external_demand_wto/wto_official_archive/
+            external_demand_wto/wto_exact_export/
           if-no-files-found: error
           retention-days: 30
 
