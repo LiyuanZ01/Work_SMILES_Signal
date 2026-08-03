@@ -1,0 +1,102 @@
+name: Official WTO portal reanalysis
+
+on:
+  push:
+    branches:
+      - agent/wto-v15-native-data-run
+    paths:
+      - ".github/workflows/wto-official-reanalysis.yml"
+      - "external_demand_wto/build_official_wto_results.py"
+      - "external_demand_wto/export_wto_stats_selected_series.py"
+      - "external_demand_wto/run_v15_p1_submission_audit.py"
+      - "external_demand_wto/run_p2_gdp_current.py"
+      - "external_demand_wto/run_p2_stationarity_correction.py"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/wto-official-reanalysis.yml"
+      - "external_demand_wto/build_official_wto_results.py"
+      - "external_demand_wto/export_wto_stats_selected_series.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  official-reanalysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: external_demand_wto/requirements.txt
+      - name: Install frozen environment and Chromium
+        run: |
+          python -m pip install --requirement external_demand_wto/requirements.txt
+          python -m pip install playwright openpyxl xlrd
+          python -m playwright install --with-deps chromium
+      - name: Reconstruct frozen weights and REER inputs
+        env:
+          PYTHONUNBUFFERED: "1"
+          V15_OUTPUT_DIR: external_demand_wto/results
+        run: python external_demand_wto/run_native_wto_v15_wrapper.py
+      - name: Export exact WTO portal selections
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: python external_demand_wto/export_wto_stats_selected_series.py
+      - name: Rebuild model inputs from direct WTO exports
+        env:
+          PYTHONUNBUFFERED: "1"
+          BASE_RESULTS_DIR: external_demand_wto/results
+          OFFICIAL_EXPORT_DIR: external_demand_wto/wto_exact_export
+          OFFICIAL_OUTPUT_DIR: external_demand_wto/official_results
+        run: python external_demand_wto/build_official_wto_results.py
+      - name: Run official-data P1 submission audit
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: |
+          python external_demand_wto/run_v15_p1_submission_audit.py \
+            --input-dir external_demand_wto/official_results \
+            --output-dir external_demand_wto/official_p1_results \
+            --bootstrap-reps 5000 \
+            --break-reps 2000
+      - name: Run official-data P2 GDP audit
+        env:
+          PYTHONUNBUFFERED: "1"
+          V15_OUTPUT_DIR: external_demand_wto/official_results
+          P2_CURRENT_OUTPUT_DIR: external_demand_wto/official_p2_current_results
+          P2_CURRENT_BOOT_REPS: "4000"
+        run: python external_demand_wto/run_p2_gdp_current.py
+      - name: Run official-data P2 correction
+        env:
+          PYTHONUNBUFFERED: "1"
+          P2_CURRENT_INPUT: external_demand_wto/official_p2_current_results
+          P2_CORRECTED_OUTPUT: external_demand_wto/official_p2_corrected_results
+          P2_CORRECTED_REPS: "5000"
+        run: python external_demand_wto/run_p2_stationarity_correction.py
+      - name: Record checksums and inventory
+        if: always()
+        run: |
+          for dir in official_results official_p1_results official_p2_current_results official_p2_corrected_results wto_exact_export; do
+            mkdir -p "$GITHUB_WORKSPACE/external_demand_wto/$dir"
+            cd "$GITHUB_WORKSPACE/external_demand_wto/$dir"
+            sha256sum * > SHA256SUMS.txt || true
+            find . -maxdepth 1 -type f -printf '%f\t%s bytes\n' | sort > FILE_INVENTORY.txt
+          done
+      - name: Upload complete official-data reanalysis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-wto-p1-p2-reanalysis
+          path: |
+            external_demand_wto/official_results/
+            external_demand_wto/official_p1_results/
+            external_demand_wto/official_p2_current_results/
+            external_demand_wto/official_p2_corrected_results/
+            external_demand_wto/wto_exact_export/
+          if-no-files-found: error
+          retention-days: 30
