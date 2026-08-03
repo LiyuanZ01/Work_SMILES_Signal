@@ -6,6 +6,11 @@ on:
       - agent/wto-v15-native-data-run
     paths:
       - ".github/workflows/submission-code-archive.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/submission-code-archive.yml"
   workflow_dispatch:
 
 permissions:
@@ -40,13 +45,13 @@ jobs:
           done
           cat > "$out/README_REPLICATION.txt" <<'EOF'
           REPLICATION CODE ARCHIVE
-          
+
           This archive contains the scripts used to download or reconstruct the
           official WTO quarterly volume inputs, estimate the national quarterly
           foreign-demand/export models, run the robustness audit, construct the
           annual partner-demand validation, and reproduce the supplementary GDP
           diagnostics.
-          
+
           Run order:
           1. run_native_wto_v15_wrapper.py
           2. export_wto_stats_selected_series.py
@@ -55,7 +60,7 @@ jobs:
           5. build_annual_absorption_shock.py
           6. run_p2_gdp_current.py
           7. run_p2_stationarity_correction.py
-          
+
           The submitted official-data archive already contains frozen source
           files and output tables. Network access is required only to refresh
           external public data.
