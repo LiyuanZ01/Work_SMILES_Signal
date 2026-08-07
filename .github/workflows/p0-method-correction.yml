@@ -7,12 +7,14 @@ on:
     paths:
       - ".github/workflows/p0-method-correction.yml"
       - "external_demand_wto/run_p0_method_correction.py"
+      - "external_demand_wto/run_p0_method_correction_v2.py"
   pull_request:
     branches:
       - main
     paths:
       - ".github/workflows/p0-method-correction.yml"
       - "external_demand_wto/run_p0_method_correction.py"
+      - "external_demand_wto/run_p0_method_correction_v2.py"
   workflow_dispatch:
 
 permissions:
@@ -55,7 +57,7 @@ jobs:
           PYTHONUNBUFFERED: "1"
           P0_INPUT_DIR: external_demand_wto/official_results
           P0_OUTPUT_DIR: external_demand_wto/p0_corrected_results
-        run: python external_demand_wto/run_p0_method_correction.py
+        run: python external_demand_wto/run_p0_method_correction_v2.py
       - name: Record checksums
         if: always()
         shell: bash
