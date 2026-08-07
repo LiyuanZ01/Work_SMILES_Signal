@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/p1-direct-bilateral-weights.yml"
       - "external_demand_wto/export_wto_direct_bilateral_baseline.py"
+      - "external_demand_wto/export_wto_direct_bilateral_baseline_v2.py"
       - "external_demand_wto/run_p1_direct_bilateral_weight_audit.py"
   pull_request:
     branches:
@@ -14,6 +15,7 @@ on:
     paths:
       - ".github/workflows/p1-direct-bilateral-weights.yml"
       - "external_demand_wto/export_wto_direct_bilateral_baseline.py"
+      - "external_demand_wto/export_wto_direct_bilateral_baseline_v2.py"
       - "external_demand_wto/run_p1_direct_bilateral_weight_audit.py"
   workflow_dispatch:
 
@@ -49,7 +51,7 @@ jobs:
           OFFICIAL_OUTPUT_DIR: external_demand_wto/official_results
         run: python external_demand_wto/build_official_wto_results.py
       - name: Export direct bilateral baseline values
-        run: python external_demand_wto/export_wto_direct_bilateral_baseline.py
+        run: python external_demand_wto/export_wto_direct_bilateral_baseline_v2.py
       - name: Run direct-weight sensitivity
         run: |
           python external_demand_wto/run_p1_direct_bilateral_weight_audit.py \
@@ -61,11 +63,9 @@ jobs:
       - name: Checksums
         if: always()
         run: |
+          mkdir -p external_demand_wto/wto_bilateral_baseline external_demand_wto/p1_direct_weight_results
           for dir in wto_bilateral_baseline p1_direct_weight_results; do
-            mkdir -p external_demand_wto/$dir
-            cd $GITHUB_WORKSPACE/external_demand_wto/$dir
-            sha256sum * > SHA256SUMS.txt || true
-            find . -maxdepth 1 -type f -printf '%f\t%s bytes\n' | sort > FILE_INVENTORY.txt
+            (cd "$GITHUB_WORKSPACE/external_demand_wto/$dir" && sha256sum * > SHA256SUMS.txt || true && find . -maxdepth 1 -type f -printf '%f\t%s bytes\n' | sort > FILE_INVENTORY.txt)
           done
       - name: Upload direct-weight artifact
         if: always()
