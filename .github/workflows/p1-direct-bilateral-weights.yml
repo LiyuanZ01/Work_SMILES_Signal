@@ -1,0 +1,79 @@
+name: P1 direct bilateral weight audit
+
+on:
+  push:
+    branches:
+      - agent/wto-v15-native-data-run
+    paths:
+      - ".github/workflows/p1-direct-bilateral-weights.yml"
+      - "external_demand_wto/export_wto_direct_bilateral_baseline.py"
+      - "external_demand_wto/run_p1_direct_bilateral_weight_audit.py"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/p1-direct-bilateral-weights.yml"
+      - "external_demand_wto/export_wto_direct_bilateral_baseline.py"
+      - "external_demand_wto/run_p1_direct_bilateral_weight_audit.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  direct-weights:
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: external_demand_wto/requirements.txt
+      - name: Install environment and Chromium
+        run: |
+          python -m pip install --requirement external_demand_wto/requirements.txt
+          python -m pip install playwright openpyxl xlrd
+          python -m playwright install --with-deps chromium
+      - name: Reconstruct frozen weight and REER inputs
+        env:
+          V15_OUTPUT_DIR: external_demand_wto/results
+        run: python external_demand_wto/run_native_wto_v15_wrapper.py
+      - name: Export quarterly China and partner WTO series
+        run: python external_demand_wto/export_wto_stats_selected_series.py
+      - name: Rebuild official quarterly model inputs
+        env:
+          BASE_RESULTS_DIR: external_demand_wto/results
+          OFFICIAL_EXPORT_DIR: external_demand_wto/wto_exact_export
+          OFFICIAL_OUTPUT_DIR: external_demand_wto/official_results
+        run: python external_demand_wto/build_official_wto_results.py
+      - name: Export direct bilateral baseline values
+        run: python external_demand_wto/export_wto_direct_bilateral_baseline.py
+      - name: Run direct-weight sensitivity
+        run: |
+          python external_demand_wto/run_p1_direct_bilateral_weight_audit.py \
+            --bilateral-zip external_demand_wto/wto_bilateral_baseline/bilateral_baseline_official_portal_csv.zip \
+            --partner-imports external_demand_wto/official_results/wto_partner_import_volume.csv \
+            --model-data external_demand_wto/official_results/v15_model_data.csv \
+            --old-weights external_demand_wto/official_results/reconstructed_fixed_weights_all_markets.csv \
+            --output-dir external_demand_wto/p1_direct_weight_results
+      - name: Checksums
+        if: always()
+        run: |
+          for dir in wto_bilateral_baseline p1_direct_weight_results; do
+            mkdir -p external_demand_wto/$dir
+            cd $GITHUB_WORKSPACE/external_demand_wto/$dir
+            sha256sum * > SHA256SUMS.txt || true
+            find . -maxdepth 1 -type f -printf '%f\t%s bytes\n' | sort > FILE_INVENTORY.txt
+          done
+      - name: Upload direct-weight artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-wto-p1-direct-bilateral-weights
+          path: |
+            external_demand_wto/wto_bilateral_baseline/
+            external_demand_wto/p1_direct_weight_results/
+          if-no-files-found: error
+          retention-days: 30
