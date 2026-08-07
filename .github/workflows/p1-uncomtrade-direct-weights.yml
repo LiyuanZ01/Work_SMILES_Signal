@@ -7,12 +7,14 @@ on:
     paths:
       - ".github/workflows/p1-uncomtrade-direct-weights.yml"
       - "external_demand_wto/run_p1_uncomtrade_direct_weights.py"
+      - "external_demand_wto/run_p1_uncomtrade_direct_weights_v2.py"
   pull_request:
     branches:
       - main
     paths:
       - ".github/workflows/p1-uncomtrade-direct-weights.yml"
       - "external_demand_wto/run_p1_uncomtrade_direct_weights.py"
+      - "external_demand_wto/run_p1_uncomtrade_direct_weights_v2.py"
   workflow_dispatch:
 
 permissions:
@@ -48,7 +50,7 @@ jobs:
         run: python external_demand_wto/build_official_wto_results.py
       - name: Run UN Comtrade direct bilateral weight audit
         run: |
-          python external_demand_wto/run_p1_uncomtrade_direct_weights.py \
+          python external_demand_wto/run_p1_uncomtrade_direct_weights_v2.py \
             --partner-imports external_demand_wto/official_results/wto_partner_import_volume.csv \
             --model-data external_demand_wto/official_results/v15_model_data.csv \
             --old-weights external_demand_wto/official_results/reconstructed_fixed_weights_all_markets.csv \
