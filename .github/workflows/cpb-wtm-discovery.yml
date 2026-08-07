@@ -1,0 +1,46 @@
+name: CPB World Trade Monitor database discovery
+
+on:
+  push:
+    branches:
+      - agent/wto-v15-native-data-run
+    paths:
+      - ".github/workflows/cpb-wtm-discovery.yml"
+      - "external_demand_wto/discover_cpb_wtm_database.py"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/cpb-wtm-discovery.yml"
+      - "external_demand_wto/discover_cpb_wtm_database.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install requests beautifulsoup4 pandas openpyxl xlrd
+      - name: Download and inspect CPB WTM database
+        run: python external_demand_wto/discover_cpb_wtm_database.py
+      - name: Checksums
+        if: always()
+        run: |
+          mkdir -p external_demand_wto/cpb_wtm_discovery
+          cd external_demand_wto/cpb_wtm_discovery
+          sha256sum * > SHA256SUMS.txt || true
+          ls -lah
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cpb-wtm-database-discovery
+          path: external_demand_wto/cpb_wtm_discovery/
+          if-no-files-found: error
+          retention-days: 30
