@@ -1,0 +1,47 @@
+name: WTO official portal export capture
+
+on:
+  push:
+    branches:
+      - agent/wto-v15-native-data-run
+    paths:
+      - ".github/workflows/wto-official-portal-export.yml"
+      - "wto_official_portal/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture-official-export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install browser automation
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Capture WTO official portal and downloads
+        env:
+          PYTHONUNBUFFERED: "1"
+          WTO_PORTAL_OUT: wto_official_portal/results
+        run: python wto_official_portal/capture_wto_portal.py
+      - name: Record checksums
+        if: always()
+        run: |
+          mkdir -p wto_official_portal/results
+          cd wto_official_portal/results
+          sha256sum * > SHA256SUMS.txt || true
+          ls -lah
+      - name: Upload portal archive
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wto-official-portal-export-capture
+          path: wto_official_portal/results/
+          if-no-files-found: error
+          retention-days: 14

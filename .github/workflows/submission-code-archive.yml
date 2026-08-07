@@ -1,0 +1,76 @@
+name: Submission replication code archive
+
+on:
+  push:
+    branches:
+      - agent/wto-v15-native-data-run
+    paths:
+      - ".github/workflows/submission-code-archive.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/submission-code-archive.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  archive-code:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assemble anonymized replication code
+        shell: bash
+        run: |
+          set -euo pipefail
+          out=submission_replication_code
+          mkdir -p "$out/external_demand_wto"
+          files=(
+            external_demand_wto/requirements.txt
+            external_demand_wto/fixed_weights_all_markets.csv
+            external_demand_wto/run_native_wto_v15.py
+            external_demand_wto/run_native_wto_v15_wrapper.py
+            external_demand_wto/export_wto_stats_selected_series.py
+            external_demand_wto/build_official_wto_results.py
+            external_demand_wto/run_v15_p1_submission_audit.py
+            external_demand_wto/build_annual_absorption_shock.py
+            external_demand_wto/run_p2_gdp_current.py
+            external_demand_wto/run_p2_stationarity_correction.py
+          )
+          for f in "${files[@]}"; do
+            test -f "$f"
+            cp "$f" "$out/external_demand_wto/"
+          done
+          cat > "$out/README_REPLICATION.txt" <<'EOF'
+          REPLICATION CODE ARCHIVE
+
+          This archive contains the scripts used to download or reconstruct the
+          official WTO quarterly volume inputs, estimate the national quarterly
+          foreign-demand/export models, run the robustness audit, construct the
+          annual partner-demand validation, and reproduce the supplementary GDP
+          diagnostics.
+
+          Run order:
+          1. run_native_wto_v15_wrapper.py
+          2. export_wto_stats_selected_series.py
+          3. build_official_wto_results.py
+          4. run_v15_p1_submission_audit.py
+          5. build_annual_absorption_shock.py
+          6. run_p2_gdp_current.py
+          7. run_p2_stationarity_correction.py
+
+          The submitted official-data archive already contains frozen source
+          files and output tables. Network access is required only to refresh
+          external public data.
+          EOF
+          cd "$out"
+          sha256sum README_REPLICATION.txt external_demand_wto/* > SHA256SUMS.txt
+          find . -type f -printf '%P\t%s bytes\n' | sort > FILE_INVENTORY.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: anonymized-submission-replication-code
+          path: submission_replication_code/
+          if-no-files-found: error
+          retention-days: 30

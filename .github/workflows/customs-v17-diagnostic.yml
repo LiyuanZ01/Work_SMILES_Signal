@@ -1,0 +1,51 @@
+name: China Customs v17 access diagnostic
+
+on:
+  push:
+    branches:
+      - agent/wto-v15-native-data-run
+    paths:
+      - ".github/workflows/customs-v17-diagnostic.yml"
+      - "external_demand_wto/diagnose_customs_current.py"
+      - "external_demand_wto/run_v17_customs_2015_2024.py"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/customs-v17-diagnostic.yml"
+      - "external_demand_wto/diagnose_customs_current.py"
+      - "external_demand_wto/run_v17_customs_2015_2024.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose-customs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: external_demand_wto/requirements.txt
+      - name: Install environment
+        run: python -m pip install --requirement external_demand_wto/requirements.txt
+      - name: Diagnose current public portal
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: python external_demand_wto/diagnose_customs_current.py
+      - name: Record checksums
+        run: |
+          cd external_demand_wto/customs_diagnostic
+          sha256sum * > SHA256SUMS.txt
+          ls -lah
+      - name: Upload diagnostic
+        uses: actions/upload-artifact@v4
+        with:
+          name: china-customs-v17-diagnostic
+          path: external_demand_wto/customs_diagnostic/
+          if-no-files-found: error
+          retention-days: 14
